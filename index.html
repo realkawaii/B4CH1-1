@@ -9,7 +9,7 @@
     <style>
         :root { --main-color: #4834d4; --accent-color: #686de0; --bg-color: #f1f2f6; --text-color: #2f3542; }
         body { font-family: "Microsoft JhengHei", sans-serif; background: var(--bg-color); display: flex; justify-content: center; padding: 20px; color: var(--text-color); }
-        #game-container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 700px; text-align: center; position: relative; }
+        #game-container { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 800px; text-align: center; position: relative; }
         .hidden { display: none; }
         .heart { color: #ff4757; font-size: 28px; margin-right: 5px; }
         .option-btn { display: block; width: 100%; margin: 12px 0; padding: 15px; font-size: 18px; border: 2px solid var(--accent-color); border-radius: 10px; cursor: pointer; background: white; transition: 0.2s; font-weight: bold; color: var(--text-color); }
@@ -17,16 +17,21 @@
         #timer-bar-bg { width: 100%; background: #dfe4ea; height: 14px; border-radius: 7px; margin: 20px 0; overflow: hidden; }
         #timer-bar { height: 100%; background: #2ed573; width: 100%; transition: width 0.4s linear; }
         
-        /* 排行榜樣式 */
+        /* 排行榜與後台表格樣式 */
         table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; border-radius: 8px; overflow: hidden; }
-        th { background: var(--main-color); color: white; padding: 12px; }
-        td { border-bottom: 1px solid #dfe4ea; padding: 10px; text-align: center; font-size: 16px; }
-        tr:nth-child(1) td { color: #e67e22; font-weight: bold; } /* 第一名金色 */
-        tr:nth-child(2) td { color: #7f8fa6; font-weight: bold; } /* 第二名銀色 */
-        tr:nth-child(3) td { color: #d35400; font-weight: bold; } /* 第三名銅色 */
+        th { background: var(--main-color); color: white; padding: 12px; font-size: 16px; }
+        td { border-bottom: 1px solid #dfe4ea; padding: 10px; text-align: center; font-size: 15px; }
+        
+        /* 排行榜前三名顏色 */
+        #leaderboard-body tr:nth-child(1) td { color: #e67e22; font-weight: bold; }
+        #leaderboard-body tr:nth-child(2) td { color: #7f8fa6; font-weight: bold; }
+        #leaderboard-body tr:nth-child(3) td { color: #d35400; font-weight: bold; }
 
         /* 輸入框與按鈕 */
-        input { padding: 12px; margin: 8px; width: 70%; border: 2px solid #ced6e0; border-radius: 8px; font-size: 16px; text-align: center; }
+        input[type="text"] { padding: 12px; margin: 8px; width: 70%; border: 2px solid #ced6e0; border-radius: 8px; font-size: 16px; text-align: center; }
+        /* 核取方塊放大 */
+        input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
+
         .btn { background: var(--main-color); color: white; border: none; padding: 12px 30px; border-radius: 8px; cursor: pointer; font-size: 18px; margin-top: 10px; transition: 0.3s; }
         .btn:hover { background: var(--accent-color); }
         .btn-red { background: #ff4757; }
@@ -94,12 +99,23 @@
         <h2 style="color: #ff4757;">教師管理介面</h2>
         <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
             <button class="btn" onclick="location.reload()" style="font-size: 14px;">離開後台</button>
-            <button class="btn btn-red" onclick="deleteAllData()" style="font-size: 14px;">⚠️ 清空所有資料</button>
+            <button class="btn btn-red" onclick="deleteSelected()" style="font-size: 14px;">刪除選取項目</button>
         </div>
-        <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd;">
-            <table>
-                <thead><tr><th>班級</th><th>姓名</th><th>分數</th><th>操作</th></tr></thead>
-                <tbody id="admin-list"></tbody>
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd;">
+            <table style="width:100%;">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"></th>
+                        <th>班級</th>
+                        <th>姓名</th>
+                        <th>分數</th>
+                        <th>完成時間</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-list">
+                    <tr><td colspan="6">資料載入中...</td></tr>
+                </tbody>
             </table>
         </div>
     </div>
@@ -111,13 +127,16 @@
         apiKey: "AIzaSyDCjJ0h5xFqZxsG-uRFABTTHfs5a_rTFvU",
         authDomain: "b4ch1-1.firebaseapp.com",
         projectId: "b4ch1-1",
-        databaseURL: "https://b4ch1-1-default-rtdb.firebaseio.com", // 確保此 URL 正確
+        databaseURL: "https://b4ch1-1-default-rtdb.firebaseio.com", 
         storageBucket: "b4ch1-1.firebasestorage.app",
         messagingSenderId: "898873357714",
         appId: "1:898873357714:web:db9fdbd0de3d808f097d4b",
         measurementId: "G-NS0TY5NEKX"
     };
-    firebase.initializeApp(firebaseConfig);
+    
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
     const db = firebase.database();
 
     // --- 2. 遊戲參數與題庫 ---
@@ -130,7 +149,6 @@
     let wrongAnswers = [];
     let userInfo = {};
 
-    // 簡單題庫範例 (可自行擴充)
     const questionBank = [
         { q: "數列 2, 5, 8, 11, □", a: "14", o: ["13", "14", "15", "16"], h: "公差 d=3，下一項為 11+3=14" },
         { q: "數列 10, 8, 6, □", a: "4", o: ["2", "4", "5", "0"], h: "公差 d=-2" },
@@ -146,13 +164,11 @@
 
     // --- 3. 核心功能：排行榜 (Top 5) ---
     function loadLeaderboard() {
-        // limitToLast(5) 抓取分數最高的5筆 (Firebase數字排序是由小到大，所以取最後5筆)
         db.ref('scores').orderByChild('score').limitToLast(5).on('value', (snapshot) => {
             const list = [];
             snapshot.forEach((child) => {
                 list.push(child.val());
             });
-            // 因為 Firebase 回傳是由小到大，我們需要反轉陣列變成由大到小 (第一名在最上面)
             list.reverse(); 
 
             const tbody = document.getElementById('leaderboard-body');
@@ -183,14 +199,8 @@
         if (!cls || !nm) return alert("請完整輸入班級與姓名！");
 
         userInfo = { class: cls, name: nm };
-        
-        // 從題庫隨機抽 8 題
         gameQuestions = [...questionBank].sort(() => 0.5 - Math.random()).slice(0, 8);
-        
-        currentIdx = 0;
-        score = 0;
-        lives = 3;
-        wrongAnswers = [];
+        currentIdx = 0; score = 0; lives = 3; wrongAnswers = [];
 
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('quiz-screen').classList.remove('hidden');
@@ -198,11 +208,8 @@
     }
 
     function loadQuestion() {
-        if (currentIdx >= gameQuestions.length || lives <= 0) {
-            return endGame();
-        }
+        if (currentIdx >= gameQuestions.length || lives <= 0) return endGame();
 
-        // 更新介面
         document.getElementById('lives-display').innerHTML = '<span class="heart">❤️</span>'.repeat(lives);
         document.getElementById('progress-text').innerText = `目前進度：第 ${currentIdx + 1} / 8 題`;
         
@@ -212,7 +219,6 @@
         const optsDiv = document.getElementById('options-container');
         optsDiv.innerHTML = "";
         
-        // 隨機排列選項
         let tempOpts = [...qData.o].sort(() => 0.5 - Math.random());
         tempOpts.forEach(opt => {
             const btn = document.createElement('button');
@@ -221,7 +227,6 @@
             btn.onclick = () => checkAnswer(opt);
             optsDiv.appendChild(btn);
         });
-
         startTimer();
     }
 
@@ -231,19 +236,16 @@
         document.getElementById('timer-bar').style.width = "100%";
         document.getElementById('timer-bar').style.backgroundColor = "#2ed573";
         
-        // 40秒倒數 (400ms * 100 = 40000ms)
         timer = setInterval(() => {
             timeLeft--;
             const bar = document.getElementById('timer-bar');
             bar.style.width = timeLeft + "%";
-            
-            // 變色提醒
             if(timeLeft < 30) bar.style.backgroundColor = "#ffa502";
             if(timeLeft < 15) bar.style.backgroundColor = "#ff4757";
 
             if (timeLeft <= 0) {
                 clearInterval(timer);
-                checkAnswer(null); // 時間到
+                checkAnswer(null); 
             }
         }, 400); 
     }
@@ -253,16 +255,13 @@
         const qData = gameQuestions[currentIdx];
         
         if (ans === qData.a) {
-            // 計分公式：基礎100 + 剩餘時間加權
             score += (100 + timeLeft * 2);
             document.getElementById('score-display').innerText = `分數: ${score}`;
         } else {
             lives--;
             wrongAnswers.push(qData);
         }
-
         currentIdx++;
-        // 稍微延遲讓玩家看到點擊回饋 (可選)
         loadQuestion();
     }
 
@@ -273,12 +272,10 @@
         document.getElementById('end-status').innerText = lives > 0 ? "🎉 挑戰成功！" : "💔 挑戰結束";
         document.getElementById('final-score').innerText = `最終得分：${score}`;
 
-        // 顯示錯題
-        const reviewDiv = document.getElementById('review-list');
         const reviewArea = document.getElementById('review-area');
         if (wrongAnswers.length > 0) {
             reviewArea.classList.remove('hidden');
-            reviewDiv.innerHTML = wrongAnswers.map(w => `
+            document.getElementById('review-list').innerHTML = wrongAnswers.map(w => `
                 <div class="review-box">
                     <strong>題目：</strong>${w.q}<br>
                     <strong style="color:green">正解：${w.a}</strong><br>
@@ -289,7 +286,6 @@
             reviewArea.classList.add('hidden');
         }
 
-        // --- 關鍵：將資料寫入 Firebase ---
         db.ref('scores').push({
             class: userInfo.class,
             name: userInfo.name,
@@ -298,7 +294,7 @@
         });
     }
 
-    // --- 5. 老師後台邏輯 ---
+    // --- 5. 老師後台邏輯 (含選取刪除) ---
     function checkAdmin() {
         const pwd = prompt("請輸入老師管理密碼：");
         if (pwd === "0904") {
@@ -311,38 +307,87 @@
     }
 
     function loadAdminData() {
-        // 後台顯示所有資料
-        db.ref('scores').orderByChild('timestamp').limitToLast(100).on('value', snapshot => {
+        db.ref('scores').limitToLast(100).on('value', snapshot => {
             const listDiv = document.getElementById('admin-list');
             listDiv.innerHTML = "";
             let temp = [];
-            snapshot.forEach(c => temp.push({key: c.key, ...c.val()}));
-            temp.reverse(); // 最新的在上面
+            
+            snapshot.forEach(c => {
+                temp.push({key: c.key, ...c.val()});
+            });
+            
+            temp.reverse(); // 新的在上面
 
-            listDiv.innerHTML = temp.map(item => `
-                <tr>
-                    <td>${item.class}</td>
-                    <td>${item.name}</td>
-                    <td>${item.score}</td>
-                    <td><button onclick="deleteSingle('${item.key}')" style="background:#ff4757; color:white; border:none; border-radius:4px; cursor:pointer;">刪除</button></td>
-                </tr>
-            `).join('');
+            // 重置全選按鈕
+            const selectAllBtn = document.getElementById('selectAll');
+            if(selectAllBtn) selectAllBtn.checked = false;
+
+            if(temp.length === 0) {
+                listDiv.innerHTML = '<tr><td colspan="6">目前資料庫是空的</td></tr>';
+            } else {
+                listDiv.innerHTML = temp.map(item => {
+                    let timeStr = "無紀錄";
+                    if(item.timestamp) {
+                        timeStr = new Date(item.timestamp).toLocaleString();
+                    }
+
+                    return `
+                        <tr>
+                            <td><input type="checkbox" name="recordCb" value="${item.key}"></td>
+                            <td>${item.class}</td>
+                            <td>${item.name}</td>
+                            <td>${item.score}</td>
+                            <td style="font-size:14px; color:#555;">${timeStr}</td>
+                            <td><button onclick="deleteSingle('${item.key}')" style="background:#ff4757; color:white; border:none; border-radius:4px; cursor:pointer; padding:5px 10px;">刪除</button></td>
+                        </tr>
+                    `;
+                }).join('');
+            }
         });
+    }
+
+    // 全選功能
+    function toggleSelectAll(source) {
+        const checkboxes = document.getElementsByName('recordCb');
+        for(let i=0; i<checkboxes.length; i++) {
+            checkboxes[i].checked = source.checked;
+        }
+    }
+
+    // 刪除選取項目
+    function deleteSelected() {
+        const checkboxes = document.getElementsByName('recordCb');
+        const updates = {};
+        let count = 0;
+
+        for(let i=0; i<checkboxes.length; i++) {
+            if(checkboxes[i].checked) {
+                updates[checkboxes[i].value] = null; // 在 Firebase 中設為 null 即為刪除
+                count++;
+            }
+        }
+
+        if(count === 0) {
+            return alert("請先勾選要刪除的資料！");
+        }
+
+        if(confirm(`確定要刪除這 ${count} 筆資料嗎？`)) {
+            db.ref('scores').update(updates)
+                .then(() => {
+                    alert("刪除成功！");
+                    document.getElementById('selectAll').checked = false;
+                })
+                .catch((error) => {
+                    alert("刪除失敗：" + error.message);
+                });
+        }
     }
 
     function deleteSingle(key) {
         if(confirm("確定刪除此筆資料？")) db.ref('scores').child(key).remove();
     }
 
-    function deleteAllData() {
-        if(confirm("警告：這將會刪除「所有」學生的成績資料，且無法復原！確定嗎？")) {
-            db.ref('scores').remove();
-        }
-    }
-
-    // 初始化：載入排行榜
     loadLeaderboard();
-
 </script>
 </body>
 </html>
